@@ -221,14 +221,26 @@ export function generatePDF(dados: DadosDiario) {
     
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
+    const bulletWidth = contentWidth - 5 // Largura disponível para o texto (descontando o bullet e margem)
+    
     dados.atividades.forEach((atividade) => {
-      if (yPosition > 270) {
-        doc.addPage()
-        yPosition = margin
-      }
       if (atividade.descricao.trim()) {
-        doc.text(`• ${atividade.descricao}`, margin + 5, yPosition)
-        yPosition += 8 // Espaçamento maior entre itens
+        // Quebrar texto em múltiplas linhas se necessário
+        const textLines = doc.splitTextToSize(atividade.descricao, bulletWidth)
+        
+        textLines.forEach((line: string, lineIndex: number) => {
+          if (yPosition > 270) {
+            doc.addPage()
+            yPosition = margin
+          }
+          
+          // Adicionar bullet apenas na primeira linha
+          const textToShow = lineIndex === 0 ? `• ${line}` : `  ${line}`
+          doc.text(textToShow, margin + 5, yPosition)
+          yPosition += 7 // Espaçamento entre linhas do mesmo item
+        })
+        
+        yPosition += 3 // Espaçamento adicional entre itens diferentes
       }
     })
     yPosition += 8 // Espaçamento adicional após a lista
@@ -248,14 +260,26 @@ export function generatePDF(dados: DadosDiario) {
     
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
+    const bulletWidth = contentWidth - 5 // Largura disponível para o texto (descontando o bullet e margem)
+    
     dados.servicos.forEach((servico) => {
-      if (yPosition > 270) {
-        doc.addPage()
-        yPosition = margin
-      }
       if (servico.descricao.trim()) {
-        doc.text(`• ${servico.descricao}`, margin + 5, yPosition)
-        yPosition += 8 // Espaçamento maior entre itens
+        // Quebrar texto em múltiplas linhas se necessário
+        const textLines = doc.splitTextToSize(servico.descricao, bulletWidth)
+        
+        textLines.forEach((line: string, lineIndex: number) => {
+          if (yPosition > 270) {
+            doc.addPage()
+            yPosition = margin
+          }
+          
+          // Adicionar bullet apenas na primeira linha
+          const textToShow = lineIndex === 0 ? `• ${line}` : `  ${line}`
+          doc.text(textToShow, margin + 5, yPosition)
+          yPosition += 7 // Espaçamento entre linhas do mesmo item
+        })
+        
+        yPosition += 3 // Espaçamento adicional entre itens diferentes
       }
     })
     yPosition += 8 // Espaçamento adicional após a lista
@@ -359,22 +383,7 @@ export function generatePDF(dados: DadosDiario) {
             imgHeight
           )
           
-          // Adicionar legenda
-          const legendY = yPosition + imgHeight + 3
-          let legendHeight = 0
-          if (legendY < pageHeight - 15) {
-            doc.setFontSize(7)
-            doc.setFont('helvetica', 'italic')
-            doc.text(
-              `Img ${i + 1}: ${imagem1.nome}`,
-              margin,
-              legendY,
-              { maxWidth: imageColumnWidth }
-            )
-            legendHeight = 5
-          }
-          
-          maxHeightInRow = Math.max(maxHeightInRow, imgHeight + legendHeight + 3)
+          maxHeightInRow = Math.max(maxHeightInRow, imgHeight)
         } catch (error) {
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
@@ -420,22 +429,7 @@ export function generatePDF(dados: DadosDiario) {
             imgHeight
           )
           
-          // Adicionar legenda
-          const legendY = yPosition + imgHeight + 3
-          let legendHeight = 0
-          if (legendY < pageHeight - 15) {
-            doc.setFontSize(7)
-            doc.setFont('helvetica', 'italic')
-            doc.text(
-              `Img ${i + 2}: ${imagem2.nome}`,
-              rightColumnX,
-              legendY,
-              { maxWidth: imageColumnWidth }
-            )
-            legendHeight = 5
-          }
-          
-          maxHeightInRow = Math.max(maxHeightInRow, imgHeight + legendHeight + 3)
+          maxHeightInRow = Math.max(maxHeightInRow, imgHeight)
         } catch (error) {
           doc.setFontSize(10)
           doc.setFont('helvetica', 'normal')
@@ -458,69 +452,86 @@ export function generatePDF(dados: DadosDiario) {
     yPosition += 5
   }
 
-  // Carimbo Profissional como Marca D'água (adicionar em todas as páginas)
+  // Carimbo do Engenheiro ao final do PDF (compacto, estilo contrato)
+  // Deve aparecer na última página que tem imagens, ou na última página do conteúdo
   const pageHeight = doc.internal.pageSize.getHeight()
-  const carimboHeight = 65
-  const carimboWidth = 140
-  const carimboX = pageWidth - carimboWidth - margin - 10 // Canto inferior direito
+  const carimboWidth = 85 // Menor largura
+  const carimboHeight = 55 // Menor altura
+  const carimboX = pageWidth - carimboWidth - margin - 5 // Canto inferior direito, mais próximo da margem
   const carimboY = pageHeight - carimboHeight - 15 // 15px de margem inferior
   
-  // Adicionar carimbo em todas as páginas como marca d'água
-  const totalPagesForCarimbo = doc.getNumberOfPages()
-  for (let pageNum = 1; pageNum <= totalPagesForCarimbo; pageNum++) {
-    doc.setPage(pageNum)
-    
-    // Borda externa do carimbo (mais espessa para simular carimbo real)
-    doc.setDrawColor(120, 120, 120) // Cinza médio para efeito de marca d'água
-    doc.setLineWidth(1.2)
-    doc.rect(carimboX, carimboY, carimboWidth, carimboHeight)
-    
-    // Borda interna (dupla borda para simular carimbo real)
-    doc.setDrawColor(140, 140, 140) // Cinza mais claro
-    doc.setLineWidth(0.4)
-    doc.rect(carimboX + 2, carimboY + 2, carimboWidth - 4, carimboHeight - 4)
-    
-    // Linha divisória superior
-    doc.setDrawColor(150, 150, 150)
-    doc.setLineWidth(0.3)
-    doc.line(carimboX + 4, carimboY + 18, carimboX + carimboWidth - 4, carimboY + 18)
-    
-    // Linha divisória inferior
-    doc.line(carimboX + 4, carimboY + carimboHeight - 18, carimboX + carimboWidth - 4, carimboY + carimboHeight - 18)
-    
-    // Texto do carimbo com cor cinza para efeito de marca d'água
-    doc.setTextColor(100, 100, 100) // Cinza para marca d'água
-    const carimboCenterX = carimboX + carimboWidth / 2
-    const carimboTextY = carimboY + 10
-    
-    // Nome (maior destaque)
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Paulo Sérgio A. Fonseca', carimboCenterX, carimboTextY, { align: 'center' })
-    
-    // Títulos profissionais
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text('Eng: Civil / Eng: Segurança', carimboCenterX, carimboTextY + 8, { align: 'center' })
-    doc.text('do Trabalho', carimboCenterX, carimboTextY + 12, { align: 'center' })
-    
-    // CREA
-    doc.setFontSize(7.5)
-    doc.text('CREA NACIONAL', carimboCenterX, carimboTextY + 20, { align: 'center' })
-    doc.text('110134303 - 6', carimboCenterX, carimboTextY + 24, { align: 'center' })
-    
-    // Registros nos Estados
-    doc.setFontSize(6.5)
-    doc.text('Registro: MA / PA / TO', carimboCenterX, carimboTextY + 32, { align: 'center' })
-    
-    // Contatos
-    doc.setFontSize(6.5)
-    doc.text('(99) 98111 1920 - TIM', carimboCenterX, carimboTextY + 38, { align: 'center' })
-    
-    // Restaurar cor do texto e borda para o restante do documento
-    doc.setTextColor(0, 0, 0)
-    doc.setDrawColor(0, 0, 0)
-  }
+  // Ir para a última página (onde as imagens terminaram ou última página do conteúdo)
+  const finalPage = doc.getNumberOfPages()
+  doc.setPage(finalPage)
+  
+  // Verificar se o carimbo cabe na página atual (não criar nova página)
+  // O carimbo fica no canto inferior direito, então sempre deve caber
+  
+  // Desenhar cantos do carimbo (bordas em L menores)
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.8)
+  const cornerLength = 5 // Cantos menores
+  
+  // Canto superior esquerdo
+  doc.line(carimboX, carimboY, carimboX + cornerLength, carimboY)
+  doc.line(carimboX, carimboY, carimboX, carimboY + cornerLength)
+  
+  // Canto superior direito
+  doc.line(carimboX + carimboWidth - cornerLength, carimboY, carimboX + carimboWidth, carimboY)
+  doc.line(carimboX + carimboWidth, carimboY, carimboX + carimboWidth, carimboY + cornerLength)
+  
+  // Canto inferior esquerdo
+  doc.line(carimboX, carimboY + carimboHeight - cornerLength, carimboX, carimboY + carimboHeight)
+  doc.line(carimboX, carimboY + carimboHeight, carimboX + cornerLength, carimboY + carimboHeight)
+  
+  // Canto inferior direito
+  doc.line(carimboX + carimboWidth - cornerLength, carimboY + carimboHeight, carimboX + carimboWidth, carimboY + carimboHeight)
+  doc.line(carimboX + carimboWidth, carimboY + carimboHeight - cornerLength, carimboX + carimboWidth, carimboY + carimboHeight)
+  
+  // Texto do carimbo (compacto)
+  doc.setTextColor(0, 0, 0)
+  const carimboCenterX = carimboX + carimboWidth / 2
+  let textY = carimboY + 5
+  
+  // CREA - ENGENHEIRO (topo, menor)
+  doc.setFontSize(6.5)
+  doc.setFont('helvetica', 'bold')
+  doc.text('CREA - ENGENHEIRO', carimboCenterX, textY, { align: 'center' })
+  textY += 6
+  
+  // Número do CREA (menor)
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'bold')
+  doc.text('110134303-6', carimboCenterX, textY, { align: 'center' })
+  textY += 7
+  
+  // Nome do Engenheiro (menor)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Paulo Sérgio A. Fonseca', carimboCenterX, textY, { align: 'center' })
+  textY += 5.5
+  
+  // Títulos profissionais (menor)
+  doc.setFontSize(5)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Eng. Civil / Eng. Seg.', carimboCenterX, textY, { align: 'center' })
+  textY += 4.5
+  doc.text('do Trabalho', carimboCenterX, textY, { align: 'center' })
+  textY += 5
+  
+  // Registros nos Estados (menor)
+  doc.setFontSize(4.5)
+  doc.text('Registro: MA/PA/TO', carimboCenterX, textY, { align: 'center' })
+  textY += 4.5
+  
+  // Contato (menor)
+  doc.setFontSize(4.5)
+  doc.text('(99) 98111 1920', carimboCenterX, textY, { align: 'center' })
+  textY += 4.5
+  
+  // BRASIL (menor)
+  doc.setFontSize(4)
+  doc.text('BRASIL', carimboCenterX, textY, { align: 'center' })
 
   // Rodapé (numeração de páginas)
   const totalPages = doc.getNumberOfPages()
