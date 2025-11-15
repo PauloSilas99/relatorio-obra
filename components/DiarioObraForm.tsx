@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { generatePDF } from '@/utils/pdfGenerator'
+import { useState, useEffect } from 'react'
+import { generatePDF, generatePDFPreview } from '@/utils/pdfGenerator'
 
 interface Equipamento {
   nome: string
@@ -41,6 +41,8 @@ export default function DiarioObraForm() {
     dimensoes: { width: number; height: number }
   }>>([])
   const [showModal, setShowModal] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
 
   const addEquipamento = () => {
     setEquipamentos([...equipamentos, { nome: '', quantidade: 0, observacao: '' }])
@@ -157,7 +159,7 @@ export default function DiarioObraForm() {
     setImagens([])
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePreview = (e: React.FormEvent) => {
     e.preventDefault()
     
     const dados = {
@@ -176,21 +178,68 @@ export default function DiarioObraForm() {
       imagens
     }
 
+    // Gerar pré-visualização
+    const url = generatePDFPreview(dados)
+    setPreviewUrl(url)
+    setShowPreview(true)
+  }
+
+  const handleGeneratePDF = () => {
+    const dados = {
+      nomeObra,
+      empresaContratada,
+      localizacaoObra,
+      data,
+      numeroFolha,
+      condicaoTempo,
+      periodoChuva: condicaoTempo === 'chuvoso' ? periodoChuva : '',
+      equipamentos: equipamentos.filter(eq => eq.nome.trim() !== ''),
+      funcionarios: funcionarios.filter(func => func.cargo.trim() !== ''),
+      atividades: atividades.filter(atv => atv.descricao.trim() !== ''),
+      servicos: servicos.filter(serv => serv.descricao.trim() !== ''),
+      descricao,
+      imagens
+    }
+
     generatePDF(dados)
     
-    // Mostrar modal e limpar formulário após um pequeno delay para garantir que o PDF foi gerado
+    // Fechar pré-visualização, mostrar modal e limpar formulário
+    setShowPreview(false)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl('')
+    }
+    
     setTimeout(() => {
       setShowModal(true)
       limparFormulario()
     }, 500)
   }
 
+  const fecharPreview = () => {
+    setShowPreview(false)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl('')
+    }
+  }
+
   const fecharModal = () => {
     setShowModal(false)
   }
 
+  // Limpar URL quando componente desmontar
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+    <form onSubmit={handlePreview} className="space-y-6">
       {/* Informações Básicas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -571,15 +620,64 @@ export default function DiarioObraForm() {
         />
       </div>
 
-      {/* Botão de Gerar PDF */}
+      {/* Botão de Pré-visualização */}
       <div className="pt-4">
         <button
           type="submit"
           className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg"
         >
-          Gerar PDF do Diário de Obra
+          Visualizar Prévia do PDF
         </button>
       </div>
+
+      {/* Modal de Pré-visualização */}
+      {showPreview && previewUrl && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={fecharPreview}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-xl font-bold text-gray-800">
+                Pré-visualização do PDF
+              </h3>
+              <button
+                type="button"
+                onClick={fecharPreview}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title="Pré-visualização do PDF"
+              />
+            </div>
+            <div className="p-4 border-t flex gap-3">
+              <button
+                type="button"
+                onClick={fecharPreview}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGeneratePDF}
+                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+              >
+                Gerar e Baixar PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Confirmação */}
       {showModal && (
@@ -625,6 +723,7 @@ export default function DiarioObraForm() {
         </div>
       )}
     </form>
+    </>
   )
 }
 

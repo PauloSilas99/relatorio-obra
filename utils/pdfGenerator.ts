@@ -42,8 +42,18 @@ interface DadosDiario {
   imagens?: ImagemDiario[]
 }
 
+export function generatePDFPreview(dados: DadosDiario): string {
+  const doc = new jsPDF()
+  const url = generatePDFContent(doc, dados, false)
+  return url || ''
+}
+
 export function generatePDF(dados: DadosDiario) {
   const doc = new jsPDF()
+  generatePDFContent(doc, dados, true)
+}
+
+function generatePDFContent(doc: jsPDF, dados: DadosDiario, shouldSave: boolean): string | void {
   
   // Configurações
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -455,8 +465,8 @@ export function generatePDF(dados: DadosDiario) {
   // Carimbo do Engenheiro ao final do PDF (compacto, estilo contrato)
   // Deve aparecer na última página que tem imagens, ou na última página do conteúdo
   const pageHeight = doc.internal.pageSize.getHeight()
-  const carimboWidth = 85 // Menor largura
-  const carimboHeight = 55 // Menor altura
+  const carimboWidth = 110 // Largura maior para texto mais largo
+  const carimboHeight = 50 // Altura menor (menos espaço interno)
   const carimboX = pageWidth - carimboWidth - margin - 5 // Canto inferior direito, mais próximo da margem
   const carimboY = pageHeight - carimboHeight - 15 // 15px de margem inferior
   
@@ -464,13 +474,10 @@ export function generatePDF(dados: DadosDiario) {
   const finalPage = doc.getNumberOfPages()
   doc.setPage(finalPage)
   
-  // Verificar se o carimbo cabe na página atual (não criar nova página)
-  // O carimbo fica no canto inferior direito, então sempre deve caber
-  
-  // Desenhar cantos do carimbo (bordas em L menores)
+  // Desenhar cantos do carimbo (bordas em L)
   doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.8)
-  const cornerLength = 5 // Cantos menores
+  const cornerLength = 5
   
   // Canto superior esquerdo
   doc.line(carimboX, carimboY, carimboX + cornerLength, carimboY)
@@ -488,49 +495,47 @@ export function generatePDF(dados: DadosDiario) {
   doc.line(carimboX + carimboWidth - cornerLength, carimboY + carimboHeight, carimboX + carimboWidth, carimboY + carimboHeight)
   doc.line(carimboX + carimboWidth, carimboY + carimboHeight - cornerLength, carimboX + carimboWidth, carimboY + carimboHeight)
   
-  // Texto do carimbo (compacto)
+  // Texto do carimbo (mais largo e com fontes maiores)
   doc.setTextColor(0, 0, 0)
   const carimboCenterX = carimboX + carimboWidth / 2
-  let textY = carimboY + 5
+  let textY = carimboY + 4 // Menos espaço no topo
   
-  // CREA - ENGENHEIRO (topo, menor)
-  doc.setFontSize(6.5)
+  // CREA - ENGENHEIRO (topo)
+  doc.setFontSize(7.5)
   doc.setFont('helvetica', 'bold')
   doc.text('CREA - ENGENHEIRO', carimboCenterX, textY, { align: 'center' })
-  textY += 6
+  textY += 6.5
   
-  // Número do CREA (menor)
-  doc.setFontSize(8.5)
+  // Número do CREA
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.text('110134303-6', carimboCenterX, textY, { align: 'center' })
-  textY += 7
+  textY += 7.5
   
-  // Nome do Engenheiro (menor)
-  doc.setFontSize(6)
+  // Nome do Engenheiro
+  doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.text('Paulo Sérgio A. Fonseca', carimboCenterX, textY, { align: 'center' })
+  textY += 6
+  
+  // Títulos profissionais (em uma linha)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Eng. Civil / Eng. Seg. do Trabalho', carimboCenterX, textY, { align: 'center' })
   textY += 5.5
   
-  // Títulos profissionais (menor)
-  doc.setFontSize(5)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Eng. Civil / Eng. Seg.', carimboCenterX, textY, { align: 'center' })
-  textY += 4.5
-  doc.text('do Trabalho', carimboCenterX, textY, { align: 'center' })
+  // Registros nos Estados
+  doc.setFontSize(5.5)
+  doc.text('Registro: MA/PA/TO', carimboCenterX, textY, { align: 'center' })
   textY += 5
   
-  // Registros nos Estados (menor)
-  doc.setFontSize(4.5)
-  doc.text('Registro: MA/PA/TO', carimboCenterX, textY, { align: 'center' })
-  textY += 4.5
+  // Contato
+  doc.setFontSize(5.5)
+  doc.text('(99) 98111 1920 - TIM', carimboCenterX, textY, { align: 'center' })
+  textY += 5
   
-  // Contato (menor)
-  doc.setFontSize(4.5)
-  doc.text('(99) 98111 1920', carimboCenterX, textY, { align: 'center' })
-  textY += 4.5
-  
-  // BRASIL (menor)
-  doc.setFontSize(4)
+  // BRASIL
+  doc.setFontSize(5)
   doc.text('BRASIL', carimboCenterX, textY, { align: 'center' })
 
   // Rodapé (numeração de páginas)
@@ -547,8 +552,15 @@ export function generatePDF(dados: DadosDiario) {
     )
   }
 
-  // Salvar PDF
-  const fileName = `Diario_Obra_${dados.numeroFolha}_${dados.data.replace(/-/g, '')}.pdf`
-  doc.save(fileName)
+  // Salvar PDF ou retornar URL para pré-visualização
+  if (shouldSave) {
+    const fileName = `Diario_Obra_${dados.numeroFolha}_${dados.data.replace(/-/g, '')}.pdf`
+    doc.save(fileName)
+    return
+  } else {
+    // Retornar blob URL para pré-visualização
+    const pdfBlob = doc.output('blob')
+    return URL.createObjectURL(pdfBlob)
+  }
 }
 
