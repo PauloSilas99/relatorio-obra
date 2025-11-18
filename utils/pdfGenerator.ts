@@ -70,8 +70,25 @@ function generatePDFContent(doc: jsPDF, dados: DadosDiario, shouldSave: boolean)
   // Funções auxiliares
   const formatarData = (dataStr: string) => {
     if (!dataStr) return ''
-    const data = new Date(dataStr)
-    return data.toLocaleDateString('pt-BR')
+    
+    // Parsear a data manualmente para evitar problemas de fuso horário
+    // Formato esperado: YYYY-MM-DD
+    const partes = dataStr.split('-')
+    if (partes.length === 3) {
+      const ano = partes[0]
+      const mes = partes[1]
+      const dia = partes[2]
+      // Formatar como DD/MM/YYYY (formato brasileiro)
+      return `${dia}/${mes}/${ano}`
+    }
+    
+    // Fallback: tentar usar Date se o formato não for YYYY-MM-DD
+    try {
+      const data = new Date(dataStr + 'T12:00:00') // Adicionar meio-dia para evitar problemas de timezone
+      return data.toLocaleDateString('pt-BR')
+    } catch {
+      return dataStr
+    }
   }
 
   const condicaoTempoTexto: { [key: string]: string } = {
